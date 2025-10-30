@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PastePro+ v2 — Next-Gen Local Pastebin</title>
+
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=JetBrains+Mono&display=swap" rel="stylesheet">
+
+<!-- Highlight.js -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+
+<!-- Toastify -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+<script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+
+<!-- Feather Icons -->
+<script src="https://unpkg.com/feather-icons"></script>
+
+<!-- Markdown -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+<style>
+:root {
+  --bg: #0d1117;
+  --fg: #e6edf3;
+  --accent: #238636;
+  --card: #161b22;
+  --border: #30363d;
+  --font: "Inter", sans-serif;
+  --mono: "JetBrains Mono", monospace;
+  --transition: all 0.3s ease;
+}
+body.light {
+  --bg: #f6f8fa;
+  --fg: #1a1a1a;
+  --accent: #0969da;
+  --card: #ffffff;
+  --border: #d0d7de;
+}
+* { box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font);
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  transition: var(--transition);
+}
+
+/* Header */
+header {
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.7rem 1rem;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+}
+header h1 {
+  font-size: 1.3rem;
+  color: var(--accent);
+  font-weight: 600;
+}
+.actions button {
+  background: none;
+  border: none;
+  color: var(--fg);
+  cursor: pointer;
+  padding: 0.4rem;
+  border-radius: 6px;
+  transition: var(--transition);
+}
+.actions button:hover { background: var(--accent); color: #fff; }
+
+/* Layout */
+.container {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  flex: 1;
+  overflow: hidden;
+}
+.sidebar {
+  background: var(--card);
+  border-right: 1px solid var(--border);
+  padding: 0.8rem;
+  overflow-y: auto;
+}
+.sidebar input {
+  width: 100%;
+  padding: 0.4rem;
+  margin-bottom: 0.6rem;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--fg);
+  border-radius: 4px;
+}
+.sidebar h2 { font-size: 1rem; margin-top: 0; }
+.paste-list { list-style: none; padding: 0; margin: 0; }
+.paste-list li {
+  padding: 0.5rem;
+  border-bottom: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: var(--transition);
+}
+.paste-list li:hover {
+  background: var(--accent);
+  color: white;
+}
+
+/* Main area */
+main {
+  display: flex;
+  flex-direction: column;
+  padding: 1rem;
+  overflow: hidden;
+}
+.toolbar {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
+}
+.toolbar input {
+  flex: 1;
+  padding: 0.4rem;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--fg);
+  border-radius: 4px;
+}
+.toolbar select, .toolbar button {
+  background: var(--accent);
+  border: none;
+  color: white;
+  padding: 0.4rem 0.8rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: var(--transition);
+}
+.toolbar button:hover { opacity: 0.9; }
+
+textarea {
+  flex: 1;
+  resize: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--mono);
+  padding: 1rem;
+  outline: none;
+  font-size: 0.95rem;
+}
+#output {
+  flex: 1;
+  overflow: auto;
+  border: 1px solid var(--border);
+  padding: 1rem;
+  border-radius: 4px;
+  background: var(--card);
+  font-size: 0.95rem;
+  font-family: var(--mono);
+}
+footer {
+  text-align: center;
+  padding: 0.5rem;
+  font-size: 0.9rem;
+  color: #888;
+  border-top: 1px solid var(--border);
+}
+.hidden { display: none; }
+
+/* Glass effect */
+.card {
+  background: rgba(255,255,255,0.05);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .container { grid-template-columns: 1fr; }
+  .sidebar { max-height: 35vh; border-bottom: 1px solid var(--border); }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>PastePro+ <small>v2</small></h1>
+  <div class="actions">
+    <button id="newPaste" title="New Paste"><i data-feather="file-plus"></i></button>
+    <button id="toggleTheme" title="Toggle Theme"><i data-feather="moon"></i></button>
+    <button id="exportAll" title="Export All"><i data-feather="download"></i></button>
+    <button id="importAll" title="Import"><i data-feather="upload"></i></button>
+  </div>
+</header>
+
+<div class="container">
+  <aside class="sidebar">
+    <h2>Your Pastes</h2>
+    <input type="text" id="search" placeholder="Search...">
+    <ul class="paste-list" id="pasteList"></ul>
+  </aside>
+
+  <main>
+    <div class="toolbar">
+      <input id="title" placeholder="Title..." />
+      <select id="expiry">
+        <option value="forever">Forever</option>
+        <option value="1d">1 Day</option>
+        <option value="7d">7 Days</option>
+      </select>
+      <select id="visibility">
+        <option value="private">Private</option>
+        <option value="public">Public</option>
+      </select>
+      <button id="save">💾 Save</button>
+      <button id="viewRaw">🧾 Markdown</button>
+      <button id="copyLink">🔗 Copy</button>
+      <button id="encryptToggle">🔒 Encrypt</button>
+    </div>
+
+    <textarea id="editor" placeholder="Write your paste here..."></textarea>
+    <pre id="output" class="hidden"><code></code></pre>
+  </main>
+</div>
+
+<footer>© 2025 PastePro+ v2 — Next-Gen Local Pastebin</footer>
+
+<script>
+feather.replace();
+
+const editor = document.getElementById('editor');
+const output = document.getElementById('output');
+const pasteList = document.getElementById('pasteList');
+const titleInput = document.getElementById('title');
+const searchInput = document.getElementById('search');
+const expirySelect = document.getElementById('expiry');
+const visibilitySelect = document.getElementById('visibility');
+let currentId = null;
+let darkMode = true;
+let encryptionEnabled = false;
+
+// Helper toast
+const toast = msg => Toastify({
+  text: msg, duration: 2000, gravity: "top", position: "right",
+  backgroundColor: "var(--accent)"
+}).showToast();
+
+// ---- Storage using IndexedDB ----
+const dbName = "pasteproDB";
+let db;
+const request = indexedDB.open(dbName, 1);
+request.onupgradeneeded = e => {
+  db = e.target.result;
+  db.createObjectStore("pastes", { keyPath: "id" });
+};
+request.onsuccess = e => {
+  db = e.target.result;
+  refreshList();
+};
+request.onerror = () => toast("DB error!");
+
+// Save paste
+function savePaste(paste) {
+  const tx = db.transaction("pastes", "readwrite");
+  tx.objectStore("pastes").put(paste);
+  tx.oncomplete = refreshList;
+}
+
+// Get all
+function getAllPastes(callback) {
+  const tx = db.transaction("pastes", "readonly");
+  const req = tx.objectStore("pastes").getAll();
+  req.onsuccess = () => callback(req.result);
+}
+
+// Load by id
+function loadPaste(id) {
+  const tx = db.transaction("pastes", "readonly");
+  const req = tx.objectStore("pastes").get(id);
+  req.onsuccess = () => {
+    const p = req.result;
+    if (!p) return;
+    currentId = id;
+    titleInput.value = p.title;
+    visibilitySelect.value = p.visibility || 'private';
+    editor.value = decrypt(p.content);
+    showEditor();
+  };
+}
+
+function refreshList() {
+  if (!db) return;
+  getAllPastes(pastes => {
+    pasteList.innerHTML = "";
+    const q = searchInput.value.toLowerCase();
+    pastes
+      .filter(p => p.title.toLowerCase().includes(q))
+      .sort((a,b) => new Date(b.date) - new Date(a.date))
+      .forEach(p => {
+        const li = document.createElement("li");
+        li.innerHTML = `<strong>${p.title || "(Untitled)"}</strong> <small>[${p.visibility}]</small><br><small>${new Date(p.date).toLocaleString()}</small>`;
+        li.onclick = () => loadPaste(p.id);
+        pasteList.appendChild(li);
+      });
+  });
+}
+
+// Encrypt/decrypt
+function encrypt(str) {
+  if (!encryptionEnabled || !str) return str;
+  return btoa(unescape(encodeURIComponent(str)));
+}
+function decrypt(str) {
+  if (!encryptionEnabled || !str) return str;
+  try { return decodeURIComponent(escape(atob(str))); } catch { return str; }
+}
+
+// Show modes
+function showEditor() {
+  editor.classList.remove('hidden');
+  output.classList.add('hidden');
+}
+function showOutput() {
+  const val = editor.value;
+  output.classList.remove('hidden');
+  editor.classList.add('hidden');
+  output.innerHTML = marked.parse(val);
+  hljs.highlightAll();
+}
+
+// Save
+document.getElementById('save').onclick = () => {
+  if (!db) return toast("DB not ready");
+  const title = titleInput.value.trim() || "Untitled";
+  const content = encrypt(editor.value);
+  const expiry = expirySelect.value;
+  const expiresAt = expiry === 'forever' ? null : Date.now() + (expiry === '1d' ? 86400000 : 604800000);
+  const visibility = visibilitySelect.value;
+  if (!currentId) currentId = 'paste-' + Date.now();
+  const paste = { id: currentId, title, content, date: new Date().toISOString(), expiresAt, visibility };
+  savePaste(paste);
+  toast("💾 Saved!");
+};
+
+// New
+document.getElementById('newPaste').onclick = () => {
+  currentId = null;
+  titleInput.value = '';
+  visibilitySelect.value = 'private';
+  editor.value = '';
+  showEditor();
+};
+
+// View Markdown
+document.getElementById('viewRaw').onclick = showOutput;
+
+// Copy link
+document.getElementById('copyLink').onclick = () => {
+  if (!currentId) return toast("Save first!");
+  const tx = db.transaction("pastes", "readonly");
+  const req = tx.objectStore("pastes").get(currentId);
+  req.onsuccess = () => {
+    const paste = req.result;
+    if (!paste) return;
+    if (paste.visibility !== 'public') return toast("🔒 This paste is private!");
+    const link = location.href.split('#')[0] + '#' + currentId;
+    navigator.clipboard.writeText(link);
+    toast("🔗 Link copied!");
+  };
+};
+
+// Theme
+document.getElementById('toggleTheme').onclick = () => {
+  darkMode = !darkMode;
+  document.body.classList.toggle('light', !darkMode);
+  document.getElementById('toggleTheme').innerHTML = darkMode ? '<i data-feather="moon"></i>' : '<i data-feather="sun"></i>';
+  feather.replace();
+};
+
+// Encryption toggle
+document.getElementById('encryptToggle').onclick = () => {
+  encryptionEnabled = !encryptionEnabled;
+  toast(encryptionEnabled ? "🔒 Encryption ON" : "🔓 Encryption OFF");
+};
+
+// Search
+searchInput.oninput = refreshList;
+
+// Export/Import
+document.getElementById('exportAll').onclick = () => {
+  getAllPastes(data => {
+    const blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'pastes.json'; a.click();
+    URL.revokeObjectURL(url);
+  });
+};
+document.getElementById('importAll').onclick = () => {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'application/json';
+  input.onchange = e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(reader.result);
+        const tx = db.transaction("pastes", "readwrite");
+        const store = tx.objectStore("pastes");
+        data.forEach(p => store.put(p));
+        tx.oncomplete = refreshList;
+        toast("📥 Imported!");
+      } catch { toast("❌ Invalid file"); }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+};
+
+// On load, check hash for public paste
+window.onload = () => {
+  const id = location.hash.slice(1);
+  if (!id) return;
+  const tx = db.transaction("pastes", "readonly");
+  const req = tx.objectStore("pastes").get(id);
+  req.onsuccess = () => {
+    const paste = req.result;
+    if (!paste) return;
+    if (paste.visibility !== 'public') return toast("🔒 Private paste, cannot view!");
+    currentId = id;
+    titleInput.value = paste.title;
+    visibilitySelect.value = paste.visibility;
+    editor.value = decrypt(paste.content);
+    showEditor();
+  };
+};
+</script>
+</body>
+</html>
